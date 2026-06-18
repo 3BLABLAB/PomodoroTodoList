@@ -1,56 +1,38 @@
-# Welcome to your Expo app 👋
+# Pomodoro Todo List
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+シンプルな Pomodoro と Todo を組み合わせた Expo + React Native (TypeScript) プロジェクト。
 
-## Get started
+**前提**
 
-1. Install dependencies
+- Node.js
+- npm または Yarn
+- Expo CLI (開発時に便利)
 
-   ```bash
-   npm install
-   ```
+**セットアップ**
+`npx expo start`
 
-2. Start the app
+# ミニマル・タスクタイマー（ポモドーロ風）仕様書・開発手順書
 
-   ```bash
-   npx expo start
-   ```
+## 1. アプリ概要
 
-In the output, you'll find options to open the app in a
+「25分間の集中」と「5分間の休憩」を1サイクルとし、作業の生産性を高めるためのシンプルなカウントダウンタイマーアプリ。
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+ホーム画面には現在のtodo(作業or休憩)と残り時間を表示
+画面端の+ボタンなどでtodolistの編集
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+---
 
-## Get a fresh project
+## 2. 機能要件（仕様）
 
-When you're ready, run:
+- **タイマーカウントダウン機能**
+  - 初期状態は25分（1500秒）。1秒ごとに残り時間が減少。
+  - 残り時間が「分 : 秒」（例: `25:00`）の形式でリアルタイムに表示されること。
+- **ステータス管理（集中 / 休憩）**
+  - 25分が経過すると、自動的に「休憩モード（5分）」に切り替わる。
+  - 5分が経過すると、自動的に「集中モード（25分）」に戻る。
+- **タイマー制御（操作ボタン）**
+  - 「スタート」ボタン：タイマーを開始する。
+  - 「一時停止」ボタン：タイマーを途中で止める（スタートボタンと排他表示）。
+  - 「リセット」ボタン：進行状況をクリアし、現在のモードの初期値（25分または5分）に戻す。
 
-```bash
-npm run reset-project
-```
-
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
-
-### Other setup steps
-
-- To set up ESLint for linting, run `npx expo lint`, or follow our guide on ["Using ESLint and Prettier"](https://docs.expo.dev/guides/using-eslint/)
-- If you'd like to set up unit testing, follow our guide on ["Unit Testing with Jest"](https://docs.expo.dev/develop/unit-testing/)
-- Learn more about the TypeScript setup in this template in our guide on ["Using TypeScript"](https://docs.expo.dev/guides/typescript/)
-
-## Learn more
-
-To learn more about developing your project with Expo, look at the following resources:
-
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
-
-## Join the community
-
-Join our community of developers creating universal apps.
-
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+---
