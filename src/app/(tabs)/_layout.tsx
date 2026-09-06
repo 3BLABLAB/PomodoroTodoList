@@ -1,22 +1,12 @@
-import { Tabs } from "expo-router";
+import { Stack } from "expo-router";
 import React from "react";
 
+// タブは1画面しかなく、タブバーを表示する意味がないため
+// 通常のStackとして扱い、無用なタブバーは出さない
 export default function TabsLayout() {
   return (
-    <Tabs
-      screenOptions={{
-        headerShown: false, // 上部のヘッダーを非表示にする
-        tabBarActiveTintColor: "#007aff", // タブがアクティブな時の色（青）
-      }}
-    >
-      {/* 下部タブバーに表示する画面の定義 */}
-      <Tabs.Screen
-        name="index"
-        options={{
-          title: "タスク編集",
-          // ここにアイコンの設定などを追加できます
-        }}
-      />
-    </Tabs>
+    <Stack screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="index" />
+    </Stack>
   );
 }
