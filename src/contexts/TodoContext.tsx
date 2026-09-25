@@ -8,6 +8,7 @@ export interface Todo {
   completed: boolean;
   duration?: number; // タスクの所要時間（秒単位）
   type: "work" | "break";
+  completedAt?: number; // 完了日時（ミリ秒のタイムスタンプ）。履歴を日付ごとに表示するために使用
 }
 
 export interface Settings {
@@ -34,6 +35,7 @@ interface TodoContextType {
   moveTodoDown: (id: string) => Promise<void>;
   reorderTodos: (newTodos: Todo[]) => Promise<void>;
   updateSettings: (updates: Partial<Settings>) => Promise<void>;
+  addSampleHistoryData: () => Promise<void>;
 }
 
 const TodoContext = createContext<TodoContextType | undefined>(undefined);
@@ -175,9 +177,16 @@ export function TodoProvider({ children }: { children: React.ReactNode }) {
 
   // タスクの完了トグル（削除はせず、完了状態として一覧に残す）
   const toggleTodo = async (id: string) => {
-    const updated = todos.map((todo) =>
-      todo.id === id ? { ...todo, completed: !todo.completed } : todo,
-    );
+    const updated = todos.map((todo) => {
+      if (todo.id !== id) return todo;
+      const completed = !todo.completed;
+      return {
+        ...todo,
+        completed,
+        // 完了時刻を記録し、未完了に戻したら履歴から外れるようクリアする
+        completedAt: completed ? Date.now() : undefined,
+      };
+    });
     setTodos(updated);
     await saveTodos(updated);
   };
@@ -211,6 +220,37 @@ export function TodoProvider({ children }: { children: React.ReactNode }) {
     await saveTodos(newTodos);
   };
 
+  // 動作確認用：過去数日分の完了済みタスクをまとめて追加する（達成履歴画面のテストデータ）
+  const addSampleHistoryData = async () => {
+    const DAY_MS = 24 * 60 * 60 * 1000;
+    const now = Date.now();
+    const samples: { title: string; duration: number; daysAgo: number; hour: number }[] = [
+      { title: "資料作成", duration: 25, daysAgo: 0, hour: 9 },
+      { title: "メール返信", duration: 15, daysAgo: 0, hour: 11 },
+      { title: "企画書レビュー", duration: 45, daysAgo: 1, hour: 10 },
+      { title: "読書", duration: 25, daysAgo: 1, hour: 20 },
+      { title: "英語学習", duration: 25, daysAgo: 2, hour: 8 },
+    ];
+
+    const sampleTodos: Todo[] = samples.map((sample, index) => {
+      const completedAt = now - sample.daysAgo * DAY_MS;
+      const date = new Date(completedAt);
+      date.setHours(sample.hour, 0, 0, 0);
+      return {
+        id: `sample-${now}-${index}`,
+        title: sample.title,
+        duration: sample.duration * 60,
+        completed: true,
+        type: "work",
+        completedAt: date.getTime(),
+      };
+    });
+
+    const updated = [...todos, ...sampleTodos];
+    setTodos(updated);
+    await saveTodos(updated);
+  };
+
   // タイマーに表示する現在のタスクを選択（選択したタスクをキュー先頭へ移動）
   const selectTask = async (todo: Todo | null) => {
     if (!todo) return;
@@ -234,6 +274,7 @@ export function TodoProvider({ children }: { children: React.ReactNode }) {
         moveTodoDown,
         reorderTodos,
         updateSettings,
+        addSampleHistoryData,
       }}
     >
       {children}

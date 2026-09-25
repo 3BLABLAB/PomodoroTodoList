@@ -36,5 +36,5 @@ for (let i = 0; i < numSamples; i++) {
   buffer.writeInt16LE(Math.max(-32768, Math.min(32767, Math.round(sample))), 44 + i * 2);
 }
 
-fs.writeFileSync('assets/sounds/timer-complete.wav', buffer);
-console.log('Generated timer-complete.wav');
+fs.writeFileSync('assets/sounds/timer_complete.wav', buffer);
+console.log('Generated timer_complete.wav');

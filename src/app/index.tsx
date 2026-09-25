@@ -1,4 +1,5 @@
 import { setAudioModeAsync, useAudioPlayer } from "expo-audio";
+import Constants from "expo-constants";
 import * as KeepAwake from "expo-keep-awake";
 import * as Notifications from "expo-notifications";
 import { Link } from "expo-router";
@@ -6,6 +7,7 @@ import React from "react";
 import {
   Animated,
   AppState,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -16,6 +18,10 @@ import { CountdownCircleTimer } from "react-native-countdown-circle-timer";
 import { Todo, useTodo } from "../contexts/TodoContext";
 
 const KEEP_AWAKE_TAG = "pomodoro-timer";
+// Expo Goにはカスタム通知音がネイティブ組み込みされていないため、Expo Go実行時はデフォルト音にフォールバックする
+const IS_EXPO_GO = Constants.appOwnership === "expo";
+// Androidでスリープ中/ロック画面でも通知が確実に見えるようにするための専用チャンネル
+const TIMER_CHANNEL_ID = "timer-complete";
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -39,7 +45,7 @@ export default function RootIndex() {
   const [timerKey, setTimerKey] = React.useState(0);
   // 再生位置の巻き戻しだけで繰り返し鳴らせるよう、プレイヤーは使い回す
   const soundPlayer = useAudioPlayer(
-    require("../../assets/sounds/timer-complete.wav"),
+    require("../../assets/sounds/timer_complete.wav"),
   );
   // バックグラウンド復帰時にタイマーがずれないよう、終了予定時刻を保持する
   const endTimeRef = React.useRef<number | null>(null);
@@ -51,14 +57,22 @@ export default function RootIndex() {
   const remainingTimeRef = React.useRef(taskDuration);
   // タイマーに実際に渡す残り秒数（バックグラウンド復帰時の再計算や延長で変わる）
   const [activeDuration, setActiveDuration] = React.useState(taskDuration);
-
-  // タスクが切り替わったら、残り時間とタイマー表示をリセットする
+  // タスクが切り替わった（またはタスクの時間が編集された）ことを検知するためのキー
+  const [syncedTaskKey, setSyncedTaskKey] = React.useState(
+    `${currentTask?.id}-${taskDuration}`,
+  );
+  const taskKey = `${currentTask?.id}-${taskDuration}`;
+  if (taskKey !== syncedTaskKey) {
+    // タスクが切り替わったら、タイマー表示をリセットする
+    setSyncedTaskKey(taskKey);
+    setActiveDuration(taskDuration);
+  }
+  // refの更新はレンダー中に行えないためeffectで行う
   React.useEffect(() => {
     remainingTimeRef.current = taskDuration;
-    setActiveDuration(taskDuration);
-  }, [currentTask?.id, taskDuration]);
+  }, [taskKey, taskDuration]);
 
-  // 初回起動時の通知許可リクエスト
+  // 初回起動時の通知許可リクエストと、ロック画面表示のためのAndroid通知チャンネル設定
   React.useEffect(() => {
     const requestPermissions = async () => {
       const { status } = await Notifications.getPermissionsAsync();
@@ -67,6 +81,16 @@ export default function RootIndex() {
       }
     };
     void requestPermissions();
+
+    if (Platform.OS === "android") {
+      void Notifications.setNotificationChannelAsync(TIMER_CHANNEL_ID, {
+        name: "タイマー終了通知",
+        importance: Notifications.AndroidImportance.HIGH,
+        // ロック画面・スリープ中でも通知内容がそのまま表示されるようにする
+        lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
+        vibrationPattern: [0, 250, 250, 250],
+      });
+    }
   }, []);
 
   // タイマー再生中は画面をスリープさせない
@@ -97,7 +121,10 @@ export default function RootIndex() {
             content: {
               title: "ポモドーロタイマー",
               body: `${currentTask?.title || "タスク"}の時間が終了しました！`,
-              sound: "timer-complete.wav",
+              sound: IS_EXPO_GO ? true : "timer_complete.wav",
+              ...(Platform.OS === "android"
+                ? { channelId: TIMER_CHANNEL_ID }
+                : null),
             },
             trigger: {
               type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
@@ -230,9 +257,21 @@ export default function RootIndex() {
 
   return (
     <View style={styles.container}>
+      <ScrollView
+        style={styles.pageScroll}
+        contentContainerStyle={styles.pageScrollContent}
+        showsVerticalScrollIndicator={false}
+      >
       {/* 0. ヘッダー */}
       <View style={styles.header}>
-        <Text style={styles.appTitle}>⏱️ ポモドーロタイマー</Text>
+        <View style={styles.headerRow}>
+          <Text style={styles.appTitle}>⏱️ ポモドーロタイマー</Text>
+          <Link href="/(tabs)/history" asChild>
+            <Pressable style={styles.historyButton}>
+              <Text style={styles.historyButtonText}>📅 履歴</Text>
+            </Pressable>
+          </Link>
+        </View>
       </View>
 
       {/* 1. 現在のステータス・タスク表示領域 */}
@@ -313,60 +352,56 @@ export default function RootIndex() {
         </Pressable>
       </View>
 
-      {/* 4. 【新機能】メイン画面下部のタスク一覧表示領域 (ScrollView) */}
+      {/* 4. 【新機能】メイン画面下部のタスク一覧表示領域 */}
       <View style={styles.listSection}>
         <Text style={styles.listTitle}>📋 今日のタスク一覧</Text>
 
-        <ScrollView
-          style={styles.scrollView}
-          showsVerticalScrollIndicator={false}
-        >
-          {todos.length === 0 ? (
-            <Text style={styles.emptyText}>
-              タスクがありません。右下のボタンから追加してください。
-            </Text>
-          ) : (
-            todos.map((todo) => {
-              const isActive = currentTask?.id === todo.id;
-              return (
+        {todos.length === 0 ? (
+          <Text style={styles.emptyText}>
+            タスクがありません。右下のボタンから追加してください。
+          </Text>
+        ) : (
+          todos.map((todo) => {
+            const isActive = currentTask?.id === todo.id;
+            return (
+              <Pressable
+                key={todo.id}
+                style={[
+                  styles.todoItem,
+                  todo.type === "break" && styles.breakTodoItem,
+                  isActive && styles.activeTodoItem,
+                  todo.completed && styles.completedTodoItem,
+                ]}
+                onPress={() => handleSelectFromHome(todo)}
+              >
                 <Pressable
-                  key={todo.id}
-                  style={[
-                    styles.todoItem,
-                    todo.type === "break" && styles.breakTodoItem,
-                    isActive && styles.activeTodoItem,
-                    todo.completed && styles.completedTodoItem,
-                  ]}
-                  onPress={() => handleSelectFromHome(todo)}
+                  style={styles.checkbox}
+                  onPress={() => handleToggleFromHome(todo)}
+                  accessibilityLabel={
+                    todo.completed ? "未完了に戻す" : "完了にする"
+                  }
+                  hitSlop={8}
                 >
-                  <Pressable
-                    style={styles.checkbox}
-                    onPress={() => handleToggleFromHome(todo)}
-                    accessibilityLabel={
-                      todo.completed ? "未完了に戻す" : "完了にする"
-                    }
-                    hitSlop={8}
-                  >
-                    <Text style={styles.checkboxText}>
-                      {todo.completed ? "✅" : "⭕"}
-                    </Text>
-                  </Pressable>
-                  <Text
-                    style={[
-                      styles.todoText,
-                      isActive && !todo.completed && styles.activeTodoText,
-                      todo.completed && styles.todoTextCompleted,
-                    ]}
-                  >
-                    {todo.type === "break" ? "☕ " : isActive ? "🔥 " : "👉 "}
-                    {todo.title}
+                  <Text style={styles.checkboxText}>
+                    {todo.completed ? "✅" : "⭕"}
                   </Text>
                 </Pressable>
-              );
-            })
-          )}
-        </ScrollView>
+                <Text
+                  style={[
+                    styles.todoText,
+                    isActive && !todo.completed && styles.activeTodoText,
+                    todo.completed && styles.todoTextCompleted,
+                  ]}
+                >
+                  {todo.type === "break" ? "☕ " : isActive ? "🔥 " : "👉 "}
+                  {todo.title}
+                </Text>
+              </Pressable>
+            );
+          })
+        )}
       </View>
+      </ScrollView>
 
       {/* 5. 画面端の「＋」ボタン（ToDo編集画面へのリンク） */}
       <Link href="/(tabs)" asChild>
@@ -382,7 +417,13 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#f5f5f7",
+  },
+  pageScroll: {
+    flex: 1,
+  },
+  pageScrollContent: {
     padding: 20,
+    paddingBottom: 40,
   },
   header: {
     marginBottom: 20,
@@ -390,11 +431,25 @@ const styles = StyleSheet.create({
     borderBottomWidth: 2,
     borderBottomColor: "#007aff",
   },
-  appTitle: {
+  headerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     paddingTop: 40,
+  },
+  appTitle: {
     fontSize: 24,
     fontWeight: "bold",
     color: "#1d1d1f",
+  },
+  historyButton: {
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+  },
+  historyButtonText: {
+    color: "#007aff",
+    fontSize: 15,
+    fontWeight: "600",
   },
   statusContainer: {
     alignItems: "center",
@@ -484,21 +539,16 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   listSection: {
-    flex: 1, // 画面の下半分をいっぱいに使う
     width: "100%",
     borderTopWidth: 1,
     borderTopColor: "#d2d2d7",
     paddingTop: 20,
-    marginBottom: 20,
   },
   listTitle: {
     fontSize: 15,
     fontWeight: "bold",
     color: "#86868b",
     marginBottom: 12,
-  },
-  scrollView: {
-    flex: 1,
   },
   emptyText: {
     textAlign: "center",

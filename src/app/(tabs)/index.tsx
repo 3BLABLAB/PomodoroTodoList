@@ -1,10 +1,8 @@
 import { useRouter } from "expo-router";
-import React, { useEffect, useRef, useState } from "react";
+import React, { useState } from "react";
 import {
   Alert,
-  Animated,
   KeyboardAvoidingView,
-  PanResponder,
   Platform,
   Pressable,
   ScrollView,
@@ -18,7 +16,6 @@ import { Todo, useTodo } from "../../contexts/TodoContext";
 
 const TASK_PRESETS = [5, 15, 25, 45];
 const BREAK_PRESETS = [5, 10, 15];
-const ROW_HEIGHT = 72;
 
 export default function TodoTabsScreen() {
   const router = useRouter();
@@ -31,14 +28,6 @@ export default function TodoTabsScreen() {
   const [editTitle, setEditTitle] = useState("");
   const [editDuration, setEditDuration] = useState("");
 
-  // ドラッグ&ドロップ並べ替え用の状態
-  const [displayTodos, setDisplayTodos] = useState<Todo[]>([]);
-  const [draggingId, setDraggingId] = useState<string | null>(null);
-  const dragTranslateY = useRef(new Animated.Value(0)).current;
-  const dragStartIndexRef = useRef(0);
-  const dragCurrentIndexRef = useRef(0);
-  const displayTodosRef = useRef<Todo[]>([]);
-
   // 💡Contextから共有データと操作用の関数をまとめて取得
   const {
     todos,
@@ -48,18 +37,9 @@ export default function TodoTabsScreen() {
     selectTask,
     moveTodoUp,
     moveTodoDown,
-    reorderTodos,
     settings,
     updateSettings,
   } = useTodo();
-
-  // ドラッグ中でなければ、Contextの最新のtodosを表示用リストへ反映する
-  useEffect(() => {
-    if (draggingId === null) {
-      setDisplayTodos(todos);
-      displayTodosRef.current = todos;
-    }
-  }, [todos, draggingId]);
 
   const handleAdd = () => {
     if (inputText.trim() === "") return;
@@ -95,7 +75,6 @@ export default function TodoTabsScreen() {
   };
 
   const startEdit = (todo: Todo) => {
-    if (draggingId) return;
     setEditingId(todo.id);
     setEditTitle(todo.title);
     setEditDuration(todo.duration ? String(Math.round(todo.duration / 60)) : "");
@@ -118,54 +97,6 @@ export default function TodoTabsScreen() {
     cancelEdit();
   };
 
-  // ドラッグ操作中の1行分のPanResponderを生成する
-  const createPanResponder = (todo: Todo, index: number) =>
-    PanResponder.create({
-      onStartShouldSetPanResponder: () => editingId === null,
-      onMoveShouldSetPanResponder: () => editingId === null,
-      onPanResponderGrant: () => {
-        dragStartIndexRef.current = index;
-        dragCurrentIndexRef.current = index;
-        dragTranslateY.setValue(0);
-        setDraggingId(todo.id);
-      },
-      onPanResponderMove: (_evt, gestureState) => {
-        const shift = Math.round(gestureState.dy / ROW_HEIGHT);
-        const list = displayTodosRef.current;
-        const newIndex = Math.min(
-          Math.max(dragStartIndexRef.current + shift, 0),
-          list.length - 1,
-        );
-
-        if (newIndex !== dragCurrentIndexRef.current) {
-          const reordered = [...list];
-          const fromIndex = reordered.findIndex((t) => t.id === todo.id);
-          const [moved] = reordered.splice(fromIndex, 1);
-          reordered.splice(newIndex, 0, moved);
-          displayTodosRef.current = reordered;
-          setDisplayTodos(reordered);
-          dragCurrentIndexRef.current = newIndex;
-        }
-
-        const compensatedOffset =
-          gestureState.dy -
-          (dragCurrentIndexRef.current - dragStartIndexRef.current) *
-            ROW_HEIGHT;
-        dragTranslateY.setValue(compensatedOffset);
-      },
-      onPanResponderRelease: () => {
-        dragTranslateY.setValue(0);
-        setDraggingId(null);
-        void reorderTodos(displayTodosRef.current);
-      },
-      onPanResponderTerminate: () => {
-        dragTranslateY.setValue(0);
-        setDraggingId(null);
-        setDisplayTodos(todos);
-        displayTodosRef.current = todos;
-      },
-    });
-
   return (
     <KeyboardAvoidingView
       style={styles.container}
@@ -179,6 +110,11 @@ export default function TodoTabsScreen() {
         <View style={{ width: 80 }} />
       </View>
 
+      <ScrollView
+        style={styles.pageScroll}
+        contentContainerStyle={styles.pageScrollContent}
+        keyboardShouldPersistTaps="handled"
+      >
       <View style={styles.inputContainer}>
         <Text style={styles.sectionLabel}>📌 新しいタスク</Text>
         <TextInput
@@ -282,14 +218,11 @@ export default function TodoTabsScreen() {
         </View>
       </View>
 
-      <ScrollView
-        style={styles.listContainer}
-        scrollEnabled={draggingId === null}
-      >
-        {displayTodos.map((todo, index) => {
+      <View style={styles.listContainer}>
+        {todos.map((todo, index) => {
           const isEditing = editingId === todo.id;
-          const isDragging = draggingId === todo.id;
-          const panResponder = createPanResponder(todo, index);
+          const isFirst = index === 0;
+          const isLast = index === todos.length - 1;
 
           if (isEditing) {
             return (
@@ -338,26 +271,16 @@ export default function TodoTabsScreen() {
           }
 
           return (
-            <Animated.View
+            <View
               key={todo.id}
               style={[
                 styles.todoItem,
                 todo.type === "break" && styles.breakTodoItem,
                 todo.completed && styles.completedTodoItem,
-                isDragging && {
-                  transform: [{ translateY: dragTranslateY }],
-                  zIndex: 10,
-                  elevation: 6,
-                  shadowOpacity: 0.3,
-                },
               ]}
             >
-              <View
-                style={styles.dragHandle}
-                {...panResponder.panHandlers}
-                accessibilityLabel="ドラッグして並べ替え"
-              >
-                <Text style={styles.dragHandleText}>≡</Text>
+              <View style={styles.orderBadge}>
+                <Text style={styles.orderBadgeText}>{index + 1}</Text>
               </View>
               <Pressable
                 style={styles.todoLeft}
@@ -379,25 +302,47 @@ export default function TodoTabsScreen() {
               </Pressable>
               <View style={styles.todoActions}>
                 <Pressable
+                  style={[
+                    styles.moveButton,
+                    isFirst && styles.moveButtonDisabled,
+                  ]}
+                  onPress={() => moveTodoUp(todo.id)}
+                  disabled={isFirst}
+                  accessibilityLabel="上に移動"
+                >
+                  <Text
+                    style={[
+                      styles.moveButtonText,
+                      isFirst && styles.moveButtonTextDisabled,
+                    ]}
+                  >
+                    ↑
+                  </Text>
+                </Pressable>
+                <Pressable
+                  style={[
+                    styles.moveButton,
+                    isLast && styles.moveButtonDisabled,
+                  ]}
+                  onPress={() => moveTodoDown(todo.id)}
+                  disabled={isLast}
+                  accessibilityLabel="下に移動"
+                >
+                  <Text
+                    style={[
+                      styles.moveButtonText,
+                      isLast && styles.moveButtonTextDisabled,
+                    ]}
+                  >
+                    ↓
+                  </Text>
+                </Pressable>
+                <Pressable
                   style={styles.moveButton}
                   onPress={() => startEdit(todo)}
                   accessibilityLabel="編集"
                 >
                   <Text style={styles.moveButtonText}>✏️</Text>
-                </Pressable>
-                <Pressable
-                  style={styles.moveButton}
-                  onPress={() => moveTodoUp(todo.id)}
-                  accessibilityLabel="上に移動"
-                >
-                  <Text style={styles.moveButtonText}>↑</Text>
-                </Pressable>
-                <Pressable
-                  style={styles.moveButton}
-                  onPress={() => moveTodoDown(todo.id)}
-                  accessibilityLabel="下に移動"
-                >
-                  <Text style={styles.moveButtonText}>↓</Text>
                 </Pressable>
                 <Pressable
                   style={styles.deleteButton}
@@ -408,9 +353,10 @@ export default function TodoTabsScreen() {
                   <Text style={styles.deleteButtonText}>🗑️</Text>
                 </Pressable>
               </View>
-            </Animated.View>
+            </View>
           );
         })}
+      </View>
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -559,7 +505,9 @@ const styles = StyleSheet.create({
     flex: 1,
     marginRight: 8,
   },
-  listContainer: { flex: 1, padding: 16 },
+  pageScroll: { flex: 1 },
+  pageScrollContent: { paddingBottom: 24 },
+  listContainer: { padding: 16 },
   todoItem: {
     flexDirection: "row",
     backgroundColor: "#fff",
@@ -569,7 +517,20 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     elevation: 1,
-    minHeight: ROW_HEIGHT,
+  },
+  orderBadge: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: "#f0f0f5",
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 10,
+  },
+  orderBadgeText: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#1d1d1f",
   },
   breakTodoItem: {
     backgroundColor: "#fff8dc",
@@ -628,16 +589,6 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontWeight: "600",
   },
-  dragHandle: {
-    paddingHorizontal: 8,
-    paddingVertical: 10,
-    marginRight: 4,
-  },
-  dragHandleText: {
-    fontSize: 20,
-    color: "#c7c7cc",
-    fontWeight: "700",
-  },
   todoLeft: { flex: 1, paddingVertical: 4 },
   todoText: { fontSize: 16, color: "#1d1d1f" },
   todoTextCompleted: {
@@ -659,6 +610,12 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: "#1d1d1f",
     fontWeight: "600",
+  },
+  moveButtonDisabled: {
+    opacity: 0.4,
+  },
+  moveButtonTextDisabled: {
+    color: "#c7c7cc",
   },
   deleteButton: { padding: 4 },
   deleteButtonText: { fontSize: 18 },

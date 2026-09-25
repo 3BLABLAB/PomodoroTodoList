@@ -1,36 +1,50 @@
-# Pomodoro Todo List
+# 🍅 Pomodoro Todo List
+
+![Expo SDK](https://img.shields.io/badge/Expo%20SDK-57-000020?logo=expo&logoColor=white)
+![Platform](https://img.shields.io/badge/platform-iOS%20%7C%20Android%20%7C%20Web-4630EB)
+![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white)
+![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)
 
 Todo リストと連動した Pomodoro タイマーアプリです。Expo Router + React Native (TypeScript) で構築されており、Web / iOS / Android のクロスプラットフォームで動作します。
 
+## 背景・課題
+
+期限を事前に決めないと作業に取り掛かれない人（開発者）に向けたタスク管理アプリです。従来のTodoアプリでは自分を管理しきれない人でも、タスクに細かい期限を設定するこのアプリを使うことで対処できます。
+
 ## 主な機能
 
-- タスクごとに作業時間を設定できる Pomodoro タイマー（円形プログレス表示）
-- タスクの追加・編集・並べ替え（ドラッグ&ドロップ）・完了管理
-- 作業タスクの後に休憩タスクを自動挿入する設定
-- タイマー終了時のローカル通知＋サウンド再生
-- タイマー再生中は画面スリープを防止（Keep Awake）
-- バックグラウンド／ロック中もタイマーのズレを補正
-- AsyncStorage によるタスク・設定のローカル永続化
-- AdMob バナー広告（テスト広告ユニットIDを使用）
+- 🍅 タスクごとに作業時間を設定できる Pomodoro タイマー（円形プログレス表示）
+- ✅ タスクの追加・編集・並べ替え（ドラッグ&ドロップ）・完了管理
+- ☕ 作業タスクの後に休憩タスクを自動挿入する設定
+- 🔔 タイマー終了時のローカル通知＋サウンド再生
+- 📱 タイマー再生中は画面スリープを防止（Keep Awake）
+- ⏱️ バックグラウンド／ロック中もタイマーのズレを補正
+- 💾 AsyncStorage によるタスク・設定のローカル永続化
+- 📢 AdMob バナー広告（テスト広告ユニットIDを使用）
 
 ## 動作環境
 
-- Expo SDK 54
-- Node.js（`npm` が利用できる環境）
+- Expo SDK 57
+- Node.js `20.19.4` / `22.13.0` / `24.3.0` / `25.0.0` 以降のいずれかの系列（`npm` が利用できる環境）
 - Expo Go、または開発ビルド（EAS Build 等）
 
 > **Note:** SDK 53 以降、Expo Go ではリモートプッシュ通知が利用できません。本アプリはローカル通知のみを使用していますが、通知・サウンド周りを実機で正確に検証したい場合は開発ビルドの利用を推奨します。
 
-## セットアップ
+## クイックスタート
 
 ```bash
+git clone https://github.com/3BLABLAB/PomodoroTodoList.git
+cd PomodoroTodoList
 npm install
+npx expo start
 ```
+
+起動後にターミナルへ表示されるQRコードを iOS/Android の [Expo Go](https://expo.dev/go) アプリで読み取るか、`w` キーを押してWeb版をブラウザで開くと動作を確認できます。
 
 ## 実行方法
 
 ```bash
-npx expo start      # 開発サーバー起動（QRコードからExpo Goで実行）
+npx expo start       # 開発サーバー起動（QRコードからExpo Goで実行）
 npm run android      # Androidエミュレータ/実機で起動
 npm run ios          # iOSシミュレータで起動
 npm run web          # Webブラウザで起動
@@ -38,13 +52,13 @@ npm run web          # Webブラウザで起動
 
 ## スクリプト
 
-| コマンド | 説明 |
-| --- | --- |
-| `npm run start` / `npx expo start` | Expo 開発サーバーを起動 |
-| `npm run android` | Android向けに起動 |
-| `npm run ios` | iOS向けに起動 |
-| `npm run web` | Web向けに起動 |
-| `npm run lint` | ESLint（`eslint-config-expo`）によるチェック |
+| コマンド                           | 説明                                         |
+| ----------------------------------- | --------------------------------------------- |
+| `npm run start` / `npx expo start` | Expo 開発サーバーを起動                      |
+| `npm run android`                  | Android向けに起動                            |
+| `npm run ios`                      | iOS向けに起動                                |
+| `npm run web`                      | Web向けに起動                                |
+| `npm run lint`                     | ESLint（`eslint-config-expo`）によるチェック |
 
 ## 主なパッケージ
 
@@ -68,4 +82,8 @@ npm run web          # Webブラウザで起動
 
 ## ライセンス
 
-`LICENSE` を参照してください。
+MIT License。詳細は [LICENSE](./LICENSE) を参照してください。
+
+## 作者
+
+[3BLABLAB](https://github.com/3BLABLAB)

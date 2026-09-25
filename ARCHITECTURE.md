@@ -26,10 +26,10 @@
 
 | ファイル | 役割 |
 | --- | --- |
-| `assets/sounds/timer-complete.wav` | タイマー終了時に再生される通知音。 |
+| `assets/sounds/timer_complete.wav` | タイマー終了時に再生される通知音。 |
 | `assets/images/` | アプリアイコン、スプラッシュ画像、Android用アダプティブアイコン素材など。 |
 | `assets/expo.icon/` | iOS用アイコンアセット（`app.json` の `ios.icon` から参照）。 |
-| `generate-bell.js` | `assets/sounds/timer-complete.wav` を生成するNode.jsスクリプト（ベル音のWAVファイルを合成する）。通常は再実行不要。 |
+| `generate-bell.js` | `assets/sounds/timer_complete.wav` を生成するNode.jsスクリプト（ベル音のWAVファイルを合成する）。通常は再実行不要。 |
 
 ## 参考・未使用コード
 
